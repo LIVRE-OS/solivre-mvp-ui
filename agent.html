@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Solivre Agent — LIVRE OS MVP</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <script defer src="assets/js/theme.js"></script>
+  <script defer src="assets/js/agent.js"></script>
+</head>
+
+<body class="dark">
+  <!-- Navigation -->
+  <header class="top-nav">
+    <a class="logo" href="index.html">LIVRE<span>OS</span></a>
+
+    <nav class="nav-links">
+      <a href="agent.html" class="active">Agent</a>
+      <a href="verifier.html">Verifier</a>
+    </nav>
+
+    <button id="theme-toggle" class="theme-toggle">🌙</button>
+  </header>
+
+  <main class="container">
+    <h1>Solivre Agent — Mythic Identity Loom</h1>
+    <p class="intro">
+      Create sovereign identities, bind attributes privately, and forge deterministic proofs.
+      All computation happens locally with your Solivre Node.
+    </p>
+
+    <!-- Create Identity -->
+    <section class="card">
+      <h2>1. Create Identity</h2>
+
+      <button id="btn-create-identity" class="btn primary">Create Identity</button>
+
+      <label for="identity-select">Active Identity</label>
+      <select id="identity-select">
+        <option value="">No identities yet</option>
+      </select>
+
+      <div id="identity-status" class="status"></div>
+      <pre id="identity-output" class="json-box"></pre>
+    </section>
+
+    <!-- Attributes -->
+    <section class="card">
+      <h2>2. Set Attributes</h2>
+      <p class="hint">These are stored privately in your local Vault (backend).</p>
+
+      <label for="birthdate">Birthdate (YYYY-MM-DD)</label>
+      <input id="birthdate" type="text" placeholder="1990-01-01" />
+
+      <label for="country">Country (ISO code)</label>
+      <input id="country" type="text" placeholder="PT" />
+
+      <button id="btn-save-attrs" class="btn primary" disabled>Save Attributes</button>
+
+      <div id="attrs-status" class="status"></div>
+      <pre id="attrs-output" class="json-box"></pre>
+    </section>
+
+    <!-- Proof -->
+    <section class="card">
+      <h2>3. Generate Proof</h2>
+      <p class="hint">
+        Must satisfy template: <strong>age ≥ 18</strong> and <strong>country = PT</strong>.
+      </p>
+
+      <button id="btn-generate-proof" class="btn primary" disabled>Generate Proof</button>
+
+      <div id="proof-status" class="status"></div>
+      <pre id="proof-output" class="json-box"></pre>
+    </section>
+
+    <!-- Export -->
+    <section class="card">
+      <h2>4. Export for Verifier</h2>
+
+      <label>Identity JSON</label>
+      <textarea id="identity-export" class="json-area" rows="6" readonly></textarea>
+
+      <div class="export-buttons">
+        <button id="btn-copy-identity" class="btn ghost" disabled>📋 Copy Identity</button>
+      </div>
+
+      <label>Proof JSON</label>
+      <textarea id="proof-export" class="json-area" rows="8" readonly></textarea>
+
+      <div class="export-buttons">
+        <button id="btn-copy-proof" class="btn ghost" disabled>📋 Copy Proof</button>
+      </div>
+
+      <button id="btn-open-verifier" class="btn secondary">Open Verifier →</button>
+    </section>
+  </main>
+
+  <footer>
+    <p>© LIVRE OS — Solivre MVP</p>
+  </footer>
+</body>
+</html>
