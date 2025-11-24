@@ -101,5 +101,130 @@
   <footer>
     <p>© LIVRE OS — Solivre MVP</p>
   </footer>
+  <script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const API = "http://localhost:4000";
+
+    const identityInput  = document.getElementById("identity-json");
+    const proofInput     = document.getElementById("proof-json");
+    const btnVerify      = document.getElementById("btn-verify");
+    const verifyStatus   = document.getElementById("verify-status");
+    const verifyOutput   = document.getElementById("verify-output");
+
+    function setText(el, msg, color) {
+      if (!el) return;
+      el.textContent = msg || "";
+      if (color) el.style.color = color;
+    }
+
+    if (btnVerify) {
+      btnVerify.addEventListener("click", async () => {
+        // 1) Parse Identity JSON
+        let identityObj;
+        try {
+          identityObj = JSON.parse(identityInput.value || "{}");
+        } catch (err) {
+          setText(verifyStatus, "Identity JSON is not valid JSON.", "#ff7b8a");
+          return;
+        }
+
+        const identityId =
+          identityObj.identityId || identityObj.id || identityObj.identity_id;
+
+        if (!identityId) {
+          setText(
+            verifyStatus,
+            "Identity JSON must contain an identityId.",
+            "#ff7b8a"
+          );
+          return;
+        }
+
+        // 2) Parse Proof JSON
+        let proofObj;
+        try {
+          proofObj = JSON.parse(proofInput.value || "{}");
+        } catch (err) {
+          setText(verifyStatus, "Proof JSON is not valid JSON.", "#ff7b8a");
+          return;
+        }
+
+        if (!proofObj || typeof proofObj !== "object") {
+          setText(verifyStatus, "Proof JSON must be an object.", "#ff7b8a");
+          return;
+        }
+
+        if (
+          proofObj.identityId &&
+          proofObj.identityId !== identityId
+        ) {
+          setText(
+            verifyStatus,
+            "Warning: identityId in proof does not match identity JSON.",
+            "#ffcc66"
+          );
+          // we still continue – backend will enforce
+        }
+
+        setText(verifyStatus, "Verifying proof…", "#a3b0ff");
+
+        try {
+          const resp = await fetch(`${API}/proof/verify`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              identityId,
+              proof: proofObj
+            })
+          });
+
+          const text = await resp.text();
+          let data;
+          try {
+            data = JSON.parse(text);
+          } catch {
+            data = text;
+          }
+
+          if (!resp.ok) {
+            setText(
+              verifyStatus,
+              "Verification failed: " +
+                (data && data.error ? data.error : resp.status),
+              "#ff7b8a"
+            );
+            if (verifyOutput) {
+              verifyOutput.textContent =
+                typeof data === "string"
+                  ? data
+                  : JSON.stringify(data, null, 2);
+            }
+            return;
+          }
+
+          // resp.ok
+          if (verifyOutput) {
+            verifyOutput.textContent = JSON.stringify(data, null, 2);
+          }
+
+          if (data && data.valid === true) {
+            setText(verifyStatus, "Proof is VALID ✅", "#7ae39c");
+          } else if (data && data.valid === false) {
+            setText(verifyStatus, "Proof is INVALID ❌", "#ff7b8a");
+          } else {
+            setText(verifyStatus, "Verification completed.", "#a3b0ff");
+          }
+        } catch (err) {
+          console.error(err);
+          setText(
+            verifyStatus,
+            "Verification error: " + err.message,
+            "#ff7b8a"
+          );
+        }
+      });
+    }
+  });
+</script>
 </body>
 </html>
