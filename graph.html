@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Graph — Solivre MVP Suite</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="stylesheet" href="assets/css/ui.css" />
+  <script defer src="assets/js/theme.js"></script>
+  <script defer src="assets/js/graph.js"></script>
+</head>
+
+<body class="dark">
+  <!-- Navigation -->
+  <header class="top-nav">
+    <a class="logo" href="index.html">LIVRE<span>OS</span></a>
+
+    <nav class="nav-links">
+      <a href="agent.html">Agent</a>
+      <a href="verifier.html">Verifier</a>
+      <a href="vault.html">Vault</a>
+      <a href="kernel.html">ID Kernel</a>
+      <a href="graph.html" class="active">Graph</a>
+    </nav>
+
+    <button id="theme-toggle" class="theme-toggle">🌙</button>
+  </header>
+
+  <main class="container">
+    <h1>Graph — Identity Proof Flow Map</h1>
+    <p class="intro">
+      Explore how identities, attributes, commitments and proofs connect inside your Solivre node —
+      like a private, sovereign “blockchain of identity events”.
+    </p>
+
+    <section class="card">
+      <h2>Graph Explorer</h2>
+      <p class="hint">
+        Data is loaded from your browser’s local storage. Use the Agent to create identities, save
+        attributes and generate proofs, then come here to inspect the chain.
+      </p>
+
+      <div class="graph-layout">
+        <!-- LEFT: Identity list -->
+        <div>
+          <div class="graph-header-row">
+            <h3>Identities</h3>
+            <button id="btn-reload-graph" class="btn ghost btn-xs">Reload</button>
+          </div>
+          <ul id="identity-list" class="identity-list"></ul>
+        </div>
+
+        <!-- CENTER: Chain view -->
+        <div>
+          <h3>Chain</h3>
+          <div id="chain-view" class="chain-view">
+            <p class="hint">Select an identity on the left to see its chain.</p>
+          </div>
+        </div>
+
+        <!-- RIGHT: Details -->
+        <div>
+          <h3>Details</h3>
+          <pre id="details-box" class="json-box"></pre>
+        </div>
+      </div>
+
+      <div id="graph-status" class="status"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>© LIVRE OS — Solivre MVP Suite</p>
+  </footer>
+</body>
+</html>

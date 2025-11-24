@@ -107,6 +107,10 @@
   document.addEventListener("DOMContentLoaded", () => {
     const API = "http://localhost:4000";
 
+    const STORAGE_IDENTITIES_KEY = "solivreIdentities";
+    const STORAGE_ATTRS_KEY      = "solivreAttributes";
+    const STORAGE_PROOFS_KEY     = "solivreProofs";
+
     // ---- DOM references --------------------------------------------------
     const btnCreateIdentity = document.getElementById("btn-create-identity");
     const identitySelect    = document.getElementById("identity-select");
@@ -129,8 +133,44 @@
     const btnCopyProof      = document.getElementById("btn-copy-proof");
     const btnOpenVerifier   = document.getElementById("btn-open-verifier");
 
-    // in-memory cache of identities
-    const identities = {};
+    // ---- Local storage helpers ------------------------------------------
+    function safeParse(json) {
+      try {
+        return JSON.parse(json);
+      } catch {
+        return null;
+      }
+    }
+
+    function loadStoredIdentities() {
+      const raw = localStorage.getItem(STORAGE_IDENTITIES_KEY);
+      const parsed = safeParse(raw);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    }
+
+    function saveStoredIdentities() {
+      localStorage.setItem(STORAGE_IDENTITIES_KEY, JSON.stringify(identities));
+    }
+
+    function updateStoredAttributes(identityId, attributes) {
+      const raw = localStorage.getItem(STORAGE_ATTRS_KEY);
+      let map = safeParse(raw);
+      if (!map || typeof map !== "object") map = {};
+      map[identityId] = attributes || {};
+      localStorage.setItem(STORAGE_ATTRS_KEY, JSON.stringify(map));
+    }
+
+    function storeProof(identityId, proofObj) {
+      const raw = localStorage.getItem(STORAGE_PROOFS_KEY);
+      let map = safeParse(raw);
+      if (!map || typeof map !== "object") map = {};
+      if (!map[identityId]) map[identityId] = [];
+      map[identityId].push(proofObj);
+      localStorage.setItem(STORAGE_PROOFS_KEY, JSON.stringify(map));
+    }
+
+    // in-memory cache of identities (loaded from storage)
+    const identities = loadStoredIdentities();
 
     function setText(el, msg, color) {
       if (!el) return;
@@ -139,9 +179,12 @@
     }
 
     function renderIdentity(data) {
-      if (!data || !data.identityId) return;
+      if (!data) return;
+      const identityId = data.identityId || data.id;
+      if (!identityId) return;
 
-      identities[data.identityId] = data;
+      identities[identityId] = data;
+      saveStoredIdentities();
 
       if (identityOutput) {
         identityOutput.textContent = JSON.stringify(data, null, 2);
@@ -154,16 +197,16 @@
       if (btnGenerateProof) btnGenerateProof.disabled = false;
       if (btnCopyIdentity)  btnCopyIdentity.disabled  = false;
 
-      // keep dropdown in sync
+      // ensure dropdown option
       if (identitySelect) {
-        let opt = identitySelect.querySelector(`option[value="${data.identityId}"]`);
+        let opt = identitySelect.querySelector('option[value="' + identityId + '"]');
         if (!opt) {
           opt = document.createElement("option");
-          opt.value = data.identityId;
-          opt.textContent = data.identityId;
+          opt.value = identityId;
+          opt.textContent = identityId;
           identitySelect.appendChild(opt);
         }
-        identitySelect.value = data.identityId;
+        identitySelect.value = identityId;
       }
     }
 
@@ -178,13 +221,41 @@
       if (btnCopyProof) btnCopyProof.disabled = false;
     }
 
+    // ---- populate identity dropdown from stored identities ---------------
+    if (identitySelect) {
+      const storedIds = Object.keys(identities);
+      if (storedIds.length) {
+        // remove default option if it exists and is empty
+        if (
+          identitySelect.options.length === 1 &&
+          !identitySelect.options[0].value
+        ) {
+          identitySelect.remove(0);
+        }
+        storedIds.forEach((id) => {
+          let opt = identitySelect.querySelector('option[value="' + id + '"]');
+          if (!opt) {
+            opt = document.createElement("option");
+            opt.value = id;
+            opt.textContent = id;
+            identitySelect.appendChild(opt);
+          }
+        });
+        identitySelect.value = storedIds[0];
+        renderIdentity(identities[storedIds[0]]);
+        if (btnSaveAttrs)     btnSaveAttrs.disabled     = false;
+        if (btnGenerateProof) btnGenerateProof.disabled = false;
+        if (btnCopyIdentity)  btnCopyIdentity.disabled  = false;
+      }
+    }
+
     // ---- 1. Create Identity ---------------------------------------------
     if (btnCreateIdentity) {
       btnCreateIdentity.addEventListener("click", async () => {
         setText(identityStatus, "Creating identity…", "#a3b0ff");
 
         try {
-          const resp = await fetch(`${API}/identity`, {
+          const resp = await fetch(API + "/identity", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({})
@@ -214,67 +285,65 @@
       });
     }
 
-    // ---- 2. Save Attributes (FLAT payload) ------------------------------
-    if (btnSaveAttrs) {
-      btnSaveAttrs.addEventListener("click", async (e) => {
-        e.preventDefault();
+    // ---- 2. Save Attributes ---------------------------------------------
+if (btnSaveAttrs) {
+  btnSaveAttrs.addEventListener("click", async (e) => {
+    e.preventDefault();
 
-        const identityId = identitySelect?.value;
-        const birthdate  = String(birthdateInput?.value || "").trim();
-        const country    = String(countryInput?.value || "").trim().toUpperCase();
+    const identityId = identitySelect?.value;
+    const birthdate  = (birthdateInput?.value || "").trim();
+    const country    = (countryInput?.value || "").trim().toUpperCase();
 
-        if (!identityId) {
-          setText(attrsStatus, "No active identity selected.", "#ff7b8a");
-          return;
-        }
-        if (!birthdate || !country) {
-          setText(attrsStatus, "Birthdate & country required.", "#ff7b8a");
-          return;
-        }
-
-        setText(attrsStatus, "Saving attributes…", "#a3b0ff");
-
-        try {
-          // IMPORTANT: match backend contract: flat fields, NOT nested
-          const resp = await fetch(`${API}/attributes`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              identityId,
-              birthdate,
-              country
-            })
-          });
-
-          if (!resp.ok) {
-            const text = await resp.text();
-            throw new Error(text || "Backend error (/attributes)");
-          }
-
-          // Your backend returns the UPDATED identity snapshot here
-          const updatedIdentity = await resp.json();
-          renderIdentity(updatedIdentity);
-
-          if (attrsOutput) {
-            attrsOutput.textContent = JSON.stringify(
-              { identityId, birthdate, country },
-              null,
-              2
-            );
-          }
-
-          setText(attrsStatus, "Attributes saved.", "#7ae39c");
-        } catch (err) {
-          console.error(err);
-          setText(attrsStatus, "Failed: " + err.message, "#ff7b8a");
-        }
-      });
+    if (!identityId) {
+      setText(attrsStatus, "No active identity selected.", "#ff7b8a");
+      return;
     }
+    if (!birthdate || !country) {
+      setText(attrsStatus, "Birthdate & country required.", "#ff7b8a");
+      return;
+    }
+
+    setText(attrsStatus, "Saving attributes…", "#a3b0ff");
+
+    try {
+      // 1) store attributes in vault AND get updated identity snapshot back
+      const attrResp = await fetch(`${API}/attributes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          identityId,
+          attributes: { birthdate, country }
+        })
+      });
+
+      if (!attrResp.ok) {
+        const text = await attrResp.text();
+        throw new Error(text || "Backend error (/attributes)");
+      }
+
+      const attrData = await attrResp.json();
+
+      // Show raw response
+      if (attrsOutput) {
+        attrsOutput.textContent = JSON.stringify(attrData, null, 2);
+      }
+
+      // 2) Treat attrData as the fresh identity snapshot
+      //    (should contain identityId, commitment, attributesRoot)
+      renderIdentity(attrData);
+
+      setText(attrsStatus, "Attributes saved.", "#7ae39c");
+    } catch (err) {
+      console.error(err);
+      setText(attrsStatus, "Failed: " + err.message, "#ff7b8a");
+    }
+  });
+}
 
     // ---- 3. Generate Proof ----------------------------------------------
     if (btnGenerateProof) {
       btnGenerateProof.addEventListener("click", async () => {
-        const identityId = identitySelect?.value;
+        const identityId = identitySelect ? identitySelect.value : "";
         if (!identityId) {
           setText(proofStatus, "Select an identity first.", "#ff7b8a");
           return;
@@ -282,7 +351,7 @@
 
         const identity = identities[identityId];
         if (!identity) {
-          setText(proofStatus, "No cached identity. Create first.", "#ff7b8a");
+          setText(proofStatus, "No cached identity. Create/refresh first.", "#ff7b8a");
           return;
         }
 
@@ -300,7 +369,7 @@
         setText(proofStatus, "Generating proof…", "#a3b0ff");
 
         try {
-          const resp = await fetch(`${API}/proof`, {
+          const resp = await fetch(API + "/proof", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -317,6 +386,7 @@
 
           const proof = await resp.json();
           renderProof(proof);
+          storeProof(identityId, proof);
           setText(proofStatus, "Proof generated.", "#7ae39c");
         } catch (err) {
           console.error(err);
@@ -328,7 +398,7 @@
     // ---- 4. Copy buttons -------------------------------------------------
     if (btnCopyIdentity) {
       btnCopyIdentity.addEventListener("click", async () => {
-        if (!identityExport.value) return;
+        if (!identityExport || !identityExport.value) return;
         await navigator.clipboard.writeText(identityExport.value);
         const old = btnCopyIdentity.textContent;
         btnCopyIdentity.textContent = "Copied!";
@@ -338,7 +408,7 @@
 
     if (btnCopyProof) {
       btnCopyProof.addEventListener("click", async () => {
-        if (!proofExport.value) return;
+        if (!proofExport || !proofExport.value) return;
         await navigator.clipboard.writeText(proofExport.value);
         const old = btnCopyProof.textContent;
         btnCopyProof.textContent = "Copied!";
