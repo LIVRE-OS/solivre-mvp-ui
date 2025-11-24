@@ -1,60 +1,641 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Vault — Solivre MVP Suite</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="assets/css/styles.css" />
-  <link rel="stylesheet" href="assets/css/ui.css" />
-  <script defer src="assets/js/theme.js"></script>
-</head>
+  <head>
+    <meta charset="UTF-8" />
+    <title>SOLIVRE – Vault</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<body class="dark">
-  <!-- Navigation -->
-  <header class="top-nav">
-    <a class="logo" href="index.html">LIVRE<span>OS</span></a>
+    <style>
+      :root {
+        --bg: #05060a;
+        --bg-alt: #0c0f18;
+        --border: #1c2133;
+        --accent: #f7b733;
+        --accent-soft: rgba(247, 183, 51, 0.12);
+        --text: #f5f7ff;
+        --text-soft: #a4acc4;
+        --danger: #ff4d4f;
+        --muted: #555c70;
+        --radius-lg: 12px;
+        --radius-md: 8px;
+      }
 
-    <nav class="nav-links">
-      <a href="agent.html">Agent</a>
-      <a href="verifier.html">Verifier</a>
-      <a href="vault.html" class="active">Vault</a>
-      <a href="kernel.html">ID Kernel</a>
-    </nav>
+      * {
+        box-sizing: border-box;
+      }
 
-    <button id="theme-toggle" class="theme-toggle">🌙</button>
-  </header>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        background: radial-gradient(circle at top, #11162a, #05060a 50%);
+        color: var(--text);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
 
-  <main class="container">
-    <h1>Vault — Encrypted Identity Storage</h1>
-    <p class="intro">
-      This is the planned storage layer for Solivre: encrypted identities, attributes and commitments
-      anchored to your local node. Phase 1 focuses on Agent + Verifier, so the Vault UI is marked as
-      <strong>work in progress</strong>.
-    </p>
+      header {
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        backdrop-filter: blur(8px);
+        background: linear-gradient(
+          to bottom,
+          rgba(5, 6, 10, 0.9),
+          rgba(5, 6, 10, 0.7)
+        );
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
 
-    <section class="card">
-      <h2>Status: WIP</h2>
-      <p class="hint">
-        The backend already stores identities and attributes in an in-memory Vault. This page will grow
-        into a full dashboard to inspect, back up and manage those records.
-      </p>
+      header h1 {
+        margin: 0;
+        font-size: 18px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
 
-      <ul class="card-list">
-        <li>List identities stored in the local node.</li>
-        <li>Inspect commitments and attribute roots without exposing raw attributes.</li>
-        <li>Export/import encrypted snapshots for backup and migration.</li>
-        <li>Future: plug different storage backends (filesystem, DB, hardware modules).</li>
-      </ul>
+      header span {
+        font-size: 12px;
+        color: var(--text-soft);
+      }
 
-      <div class="action-row">
-        <a href="index.html" class="btn ghost">← Back to Suite</a>
-        <a href="agent.html" class="btn primary">Open Agent</a>
+      .nav-links a {
+        color: var(--text-soft);
+        text-decoration: none;
+        font-size: 13px;
+        margin-left: 12px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+      }
+
+      .nav-links a:hover {
+        border-color: var(--border);
+        color: var(--text);
+      }
+
+      .nav-links a.primary {
+        border-color: var(--accent-soft);
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+
+      main {
+        flex: 1;
+        padding: 16px 24px 24px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .vault-layout {
+        display: grid;
+        grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+        gap: 16px;
+        height: calc(100vh - 96px);
+        max-height: 900px;
+      }
+
+      .card {
+        background: linear-gradient(145deg, #060814, #05060a);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+        padding: 14px 14px 16px;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5),
+          0 24px 80px rgba(0, 0, 0, 0.9);
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 10px;
+      }
+
+      .card-header h2 {
+        margin: 0;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--text-soft);
+      }
+
+      .card-header span {
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .identity-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        overflow-y: auto;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(255, 255, 255, 0.03);
+        background: radial-gradient(circle at top, #0c1020, #05060a 55%);
+      }
+
+      .identity-item {
+        padding: 10px 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .identity-item:last-child {
+        border-bottom: none;
+      }
+
+      .identity-item:hover {
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .identity-item.active {
+        background: var(--accent-soft);
+        border-left: 2px solid var(--accent);
+      }
+
+      .identity-id {
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+          Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 11px;
+        word-break: break-all;
+      }
+
+      .identity-meta {
+        margin-top: 4px;
+        font-size: 11px;
+        color: var(--text-soft);
+      }
+
+      .empty-state {
+        font-size: 13px;
+        color: var(--text-soft);
+        padding: 8px;
+      }
+
+      .details-scroller {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        background: radial-gradient(circle at top, #0c1020, #05060a 55%);
+        padding: 10px 12px;
+        font-size: 12px;
+      }
+
+      pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+          Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 11px;
+        line-height: 1.4;
+        color: #d0ddff;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+
+      th,
+      td {
+        padding: 6px 6px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        text-align: left;
+      }
+
+      th {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.11em;
+        color: var(--muted);
+      }
+
+      tr:last-child td {
+        border-bottom: none;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 6px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.11em;
+        color: var(--text-soft);
+      }
+
+      .tag.green {
+        border-color: rgba(72, 199, 116, 0.6);
+        color: #7ee6a5;
+      }
+
+      .tag.red {
+        border-color: rgba(255, 77, 79, 0.7);
+        color: #ff9a9c;
+      }
+
+      .actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: #070915;
+        color: var(--text-soft);
+        font-size: 11px;
+        padding: 4px 9px;
+        cursor: pointer;
+      }
+
+      button.primary {
+        border-color: var(--accent-soft);
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+
+      button:hover {
+        border-color: rgba(255, 255, 255, 0.18);
+      }
+
+      .status-bar {
+        margin-top: 6px;
+        font-size: 11px;
+        color: var(--muted);
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .status-bar span {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .status-bar .error {
+        color: var(--danger);
+      }
+
+      @media (max-width: 900px) {
+        .vault-layout {
+          grid-template-columns: 1fr;
+          height: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>SOLIVRE VAULT</h1>
+        <span>Identity &amp; proof overview</span>
       </div>
-    </section>
-  </main>
+      <nav class="nav-links">
+        <a href="agent.html">Agent</a>
+        <a href="verifier.html">Verifier</a>
+        <a href="graph.html">Graph</a>
+        <a href="vault.html" class="primary">Vault</a>
+      </nav>
+    </header>
 
-  <footer>
-    <p>© LIVRE OS — Solivre MVP Suite</p>
-  </footer>
-</body>
+    <main>
+      <div class="vault-layout">
+        <!-- LEFT: IDENTITIES -->
+        <section class="card">
+          <div class="card-header">
+            <h2>Identities</h2>
+            <span id="identities-count">Loading…</span>
+          </div>
+          <ul id="identity-list" class="identity-list">
+            <li class="empty-state">Loading identities from node…</li>
+          </ul>
+        </section>
+
+        <!-- RIGHT: DETAILS & PROOFS -->
+        <section class="card">
+          <div class="card-header">
+            <h2>Details</h2>
+            <span id="selected-identity-label">No identity selected</span>
+          </div>
+
+          <div class="details-scroller" id="identity-details">
+            <div class="empty-state">
+              Select an identity on the left to inspect attributes, commitment
+              and proofs.
+            </div>
+          </div>
+
+          <div style="margin-top: 10px;">
+            <div class="card-header" style="padding: 0; margin-bottom: 6px;">
+              <h2>Proofs</h2>
+              <span id="proofs-count"></span>
+            </div>
+            <div class="details-scroller" style="height: 180px;">
+              <div id="proofs-empty" class="empty-state">
+                No proofs yet for this identity.
+              </div>
+              <table id="proofs-table" style="display: none;">
+                <thead>
+                  <tr>
+                    <th>Template</th>
+                    <th>Issued at</th>
+                    <th>Proof</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="proofs-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style="margin-top: 10px;">
+            <div class="card-header" style="padding: 0; margin-bottom: 6px;">
+              <h2>Selected Proof JSON</h2>
+              <span id="selected-proof-label">None</span>
+            </div>
+            <div class="details-scroller" style="height: 150px;">
+              <pre id="selected-proof-json">// Select a proof to inspect its JSON bundle.</pre>
+            </div>
+          </div>
+
+          <div class="status-bar">
+            <span id="vault-status">Ready.</span>
+            <span id="vault-error" class="error"></span>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      // Change this if your backend runs elsewhere in prod
+      const API_BASE_URL = "http://localhost:4000";
+
+      const identityListEl = document.getElementById("identity-list");
+      const identitiesCountEl = document.getElementById("identities-count");
+      const selectedIdentityLabelEl = document.getElementById(
+        "selected-identity-label"
+      );
+      const identityDetailsEl = document.getElementById("identity-details");
+      const proofsCountEl = document.getElementById("proofs-count");
+      const proofsEmptyEl = document.getElementById("proofs-empty");
+      const proofsTableEl = document.getElementById("proofs-table");
+      const proofsBodyEl = document.getElementById("proofs-body");
+      const selectedProofLabelEl = document.getElementById(
+        "selected-proof-label"
+      );
+      const selectedProofJsonEl = document.getElementById(
+        "selected-proof-json"
+      );
+      const vaultStatusEl = document.getElementById("vault-status");
+      const vaultErrorEl = document.getElementById("vault-error");
+
+      let currentIdentityId = null;
+
+      function setStatus(msg) {
+        if (vaultStatusEl) vaultStatusEl.textContent = msg;
+      }
+
+      function setError(msg) {
+        if (vaultErrorEl) vaultErrorEl.textContent = msg || "";
+      }
+
+      async function fetchJSON(path) {
+        const url = API_BASE_URL + path;
+        const res = await fetch(url);
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(
+            `HTTP ${res.status} for ${path}${
+              text ? " – " + text.slice(0, 120) : ""
+            }`
+          );
+        }
+        return res.json();
+      }
+
+      async function loadIdentities() {
+        setStatus("Loading identities…");
+        setError("");
+
+        identityListEl.innerHTML =
+          '<li class="empty-state">Loading identities…</li>';
+
+        try {
+          const identities = await fetchJSON("/identities");
+
+          if (!Array.isArray(identities) || identities.length === 0) {
+            identityListEl.innerHTML =
+              '<li class="empty-state">No identities found in this node.</li>';
+            identitiesCountEl.textContent = "0 identities";
+            return;
+          }
+
+          identitiesCountEl.textContent = `${identities.length} identit${
+            identities.length === 1 ? "y" : "ies"
+          }`;
+
+          identityListEl.innerHTML = "";
+
+          identities.forEach((identity) => {
+            const li = document.createElement("li");
+            li.className = "identity-item";
+            li.dataset.identityId = identity.id;
+
+            const idSpan = document.createElement("span");
+            idSpan.className = "identity-id";
+            idSpan.textContent = identity.id;
+
+            const metaSpan = document.createElement("span");
+            metaSpan.className = "identity-meta";
+            metaSpan.textContent = identity.createdAt
+              ? `created: ${identity.createdAt}`
+              : "created: (unknown)";
+
+            li.appendChild(idSpan);
+            li.appendChild(metaSpan);
+
+            li.addEventListener("click", () =>
+              onIdentitySelected(identity.id, li)
+            );
+
+            identityListEl.appendChild(li);
+          });
+
+          setStatus("Identities loaded.");
+        } catch (err) {
+          console.error(err);
+          identityListEl.innerHTML =
+            '<li class="empty-state">Failed to load identities.</li>';
+          identitiesCountEl.textContent = "Error";
+          setStatus("Error loading identities.");
+          setError(err.message || String(err));
+        }
+      }
+
+      async function onIdentitySelected(identityId, listItemEl) {
+        currentIdentityId = identityId;
+
+        // highlight selection
+        document
+          .querySelectorAll(".identity-item")
+          .forEach((el) => el.classList.remove("active"));
+        if (listItemEl) listItemEl.classList.add("active");
+
+        selectedIdentityLabelEl.textContent = identityId;
+        setStatus("Loading identity details…");
+        setError("");
+
+        identityDetailsEl.innerHTML =
+          '<div class="empty-state">Loading…</div>';
+        proofsEmptyEl.style.display = "block";
+        proofsTableEl.style.display = "none";
+        proofsBodyEl.innerHTML = "";
+        proofsCountEl.textContent = "";
+        selectedProofLabelEl.textContent = "None";
+        selectedProofJsonEl.textContent =
+          "// Select a proof to inspect its JSON bundle.";
+
+        try {
+          const [identity, proofs] = await Promise.all([
+            fetchJSON(`/identities/${encodeURIComponent(identityId)}`),
+            fetchJSON(`/identities/${encodeURIComponent(identityId)}/proofs`),
+          ]);
+
+          // render identity JSON
+          identityDetailsEl.innerHTML = "";
+          const pre = document.createElement("pre");
+          pre.textContent = JSON.stringify(identity, null, 2);
+          identityDetailsEl.appendChild(pre);
+
+          // render proofs
+          if (Array.isArray(proofs) && proofs.length > 0) {
+            proofsEmptyEl.style.display = "none";
+            proofsTableEl.style.display = "table";
+            proofsBodyEl.innerHTML = "";
+
+            proofs.forEach((proof) => {
+              const tr = document.createElement("tr");
+
+              const tdTemplate = document.createElement("td");
+              tdTemplate.textContent = proof.templateId || "(template)";
+              tr.appendChild(tdTemplate);
+
+              const tdIssued = document.createElement("td");
+              tdIssued.textContent = proof.issuedAt || "";
+              tr.appendChild(tdIssued);
+
+              const tdHash = document.createElement("td");
+              const hashSpan = document.createElement("span");
+              hashSpan.className = "identity-id";
+              hashSpan.textContent =
+                proof.proofHash?.slice(0, 12) + "…" || "(none)";
+              tdHash.appendChild(hashSpan);
+              tr.appendChild(tdHash);
+
+              const tdActions = document.createElement("td");
+              const actionsDiv = document.createElement("div");
+              actionsDiv.className = "actions";
+
+              const viewBtn = document.createElement("button");
+              viewBtn.textContent = "View JSON";
+              viewBtn.addEventListener("click", () =>
+                onProofSelected(proof)
+              );
+              actionsDiv.appendChild(viewBtn);
+
+              const copyBtn = document.createElement("button");
+              copyBtn.textContent = "Copy";
+              copyBtn.addEventListener("click", () =>
+                copyProofToClipboard(proof)
+              );
+              actionsDiv.appendChild(copyBtn);
+
+              const downloadBtn = document.createElement("button");
+              downloadBtn.textContent = "Download";
+              downloadBtn.addEventListener("click", () =>
+                downloadProof(proof)
+              );
+              actionsDiv.appendChild(downloadBtn);
+
+              tdActions.appendChild(actionsDiv);
+              tr.appendChild(tdActions);
+
+              proofsBodyEl.appendChild(tr);
+            });
+
+            proofsCountEl.textContent = `${proofs.length} proof${
+              proofs.length === 1 ? "" : "s"
+            }`;
+          } else {
+            proofsEmptyEl.style.display = "block";
+            proofsTableEl.style.display = "none";
+            proofsCountEl.textContent = "0 proofs";
+          }
+
+          setStatus("Identity and proofs loaded.");
+        } catch (err) {
+          console.error(err);
+          identityDetailsEl.innerHTML =
+            '<div class="empty-state">Failed to load identity or proofs.</div>';
+          setStatus("Error loading identity.");
+          setError(err.message || String(err));
+        }
+      }
+
+      function onProofSelected(proof) {
+        selectedProofLabelEl.textContent =
+          proof.proofHash || "(unidentified proof)";
+        selectedProofJsonEl.textContent = JSON.stringify(proof, null, 2);
+      }
+
+      function copyProofToClipboard(proof) {
+        if (!navigator.clipboard) {
+          alert("Clipboard API not available in this browser.");
+          return;
+        }
+        navigator.clipboard
+          .writeText(JSON.stringify(proof, null, 2))
+          .then(() => setStatus("Proof JSON copied to clipboard."))
+          .catch((err) => {
+            console.error(err);
+            setError("Failed to copy proof JSON.");
+          });
+      }
+
+      function downloadProof(proof) {
+        const blob = new Blob([JSON.stringify(proof, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `proof-${proof.proofHash || "bundle"}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setStatus("Proof JSON downloaded.");
+      }
+
+      document.addEventListener("DOMContentLoaded", loadIdentities);
+    </script>
+  </body>
 </html>
