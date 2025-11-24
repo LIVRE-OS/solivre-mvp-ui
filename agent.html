@@ -268,41 +268,42 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // --- 3. GENERATE PROOF ---------------------------------------------------
-  if (btnGenerateProof) {
-    btnGenerateProof.addEventListener("click", async () => {
-      const identityId = identitySelect.value;
-      if (!identityId) {
-        setText(proofStatus, "Select an identity first.", "#ff7b8a");
-        return;
+// --- 3. GENERATE PROOF ---------------------------------------------------
+if (btnGenerateProof) {
+  btnGenerateProof.addEventListener("click", async () => {
+    const identityId = identitySelect.value;
+    if (!identityId) {
+      setText(proofStatus, "Select an identity first.", "#ff7b8a");
+      return;
+    }
+
+    setText(proofStatus, "Generating proof…", "#a3b0ff");
+
+    try {
+      const resp = await fetch(`${API}/proof`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          identityId,
+          templateId: "age_over_18_and_resident_pt"
+        })
+      });
+
+      if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error(text || "Backend error");
       }
 
-      setText(proofStatus, "Generating proof…", "#a3b0ff");
+      const proofPayload = await resp.json();
+      renderProof(proofPayload);
+      setText(proofStatus, "Proof generated.", "#7ae39c");
+    } catch (err) {
+      console.error(err);
+      setText(proofStatus, "Failed: " + err.message, "#ff7b8a");
+    }
+  });
+}
 
-      try {
-        const resp = await fetch(`${API}/proof`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            identityId,
-            templateId: "age_over_18_and_resident_pt"
-          })
-        });
-
-        if (!resp.ok) {
-          const text = await resp.text();
-          throw new Error(text || "Backend error");
-        }
-
-        const proofPayload = await resp.json();
-        renderProof(proofPayload);
-        setText(proofStatus, "Proof generated.", "#7ae39c");
-      } catch (err) {
-        console.error(err);
-        setText(proofStatus, "Failed: " + err.message, "#ff7b8a");
-      }
-    });
-  }
 
   // --- 4. COPY BUTTONS -----------------------------------------------------
   if (btnCopyIdentity) {
