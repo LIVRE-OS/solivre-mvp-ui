@@ -103,265 +103,257 @@
 
    <!-- footer / last sections ... -->
 
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const API = "http://localhost:4000";
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const API = "http://localhost:4000";
 
-      // ---- DOM references --------------------------------------------------
-      const btnCreateIdentity = document.getElementById("btn-create-identity");
-      const identitySelect    = document.getElementById("identity-select");
-      const identityStatus    = document.getElementById("identity-status");
-      const identityOutput    = document.getElementById("identity-output");
+    // ---- DOM references --------------------------------------------------
+    const btnCreateIdentity = document.getElementById("btn-create-identity");
+    const identitySelect    = document.getElementById("identity-select");
+    const identityStatus    = document.getElementById("identity-status");
+    const identityOutput    = document.getElementById("identity-output");
 
-      const birthdateInput    = document.getElementById("birthdate");
-      const countryInput      = document.getElementById("country");
-      const btnSaveAttrs      = document.getElementById("btn-save-attrs");
-      const attrsStatus       = document.getElementById("attrs-status");
-      const attrsOutput       = document.getElementById("attrs-output");
+    const birthdateInput    = document.getElementById("birthdate");
+    const countryInput      = document.getElementById("country");
+    const btnSaveAttrs      = document.getElementById("btn-save-attrs");
+    const attrsStatus       = document.getElementById("attrs-status");
+    const attrsOutput       = document.getElementById("attrs-output");
 
-      const btnGenerateProof  = document.getElementById("btn-generate-proof");
-      const proofStatus       = document.getElementById("proof-status");
-      const proofOutput       = document.getElementById("proof-output");
+    const btnGenerateProof  = document.getElementById("btn-generate-proof");
+    const proofStatus       = document.getElementById("proof-status");
+    const proofOutput       = document.getElementById("proof-output");
 
-      const identityExport    = document.getElementById("identity-export");
-      const proofExport       = document.getElementById("proof-export");
-      const btnCopyIdentity   = document.getElementById("btn-copy-identity");
-      const btnCopyProof      = document.getElementById("btn-copy-proof");
-      const btnOpenVerifier   = document.getElementById("btn-open-verifier");
+    const identityExport    = document.getElementById("identity-export");
+    const proofExport       = document.getElementById("proof-export");
+    const btnCopyIdentity   = document.getElementById("btn-copy-identity");
+    const btnCopyProof      = document.getElementById("btn-copy-proof");
+    const btnOpenVerifier   = document.getElementById("btn-open-verifier");
 
-      // in-memory cache of identities
-      const identities = {};
+    // in-memory cache of identities
+    const identities = {};
 
-      function setText(el, msg, color) {
-        if (!el) return;
-        el.textContent = msg || "";
-        if (color) el.style.color = color;
+    function setText(el, msg, color) {
+      if (!el) return;
+      el.textContent = msg || "";
+      if (color) el.style.color = color;
+    }
+
+    function renderIdentity(data) {
+      if (!data || !data.identityId) return;
+
+      identities[data.identityId] = data;
+
+      if (identityOutput) {
+        identityOutput.textContent = JSON.stringify(data, null, 2);
+      }
+      if (identityExport) {
+        identityExport.value = JSON.stringify(data, null, 2);
       }
 
-      function renderIdentity(data) {
-        if (!data) return;
-        identities[data.identityId] = data;
+      if (btnSaveAttrs)     btnSaveAttrs.disabled     = false;
+      if (btnGenerateProof) btnGenerateProof.disabled = false;
+      if (btnCopyIdentity)  btnCopyIdentity.disabled  = false;
 
-        if (identityOutput) {
-          identityOutput.textContent = JSON.stringify(data, null, 2);
-        }
-        if (identityExport) {
-          identityExport.value = JSON.stringify(data, null, 2);
-        }
-
-        if (btnSaveAttrs)     btnSaveAttrs.disabled     = false;
-        if (btnGenerateProof) btnGenerateProof.disabled = false;
-        if (btnCopyIdentity)  btnCopyIdentity.disabled  = false;
-      }
-
-      function renderProof(proof) {
-        if (!proof) return;
-        if (proofOutput) {
-          proofOutput.textContent = JSON.stringify(proof, null, 2);
-        }
-        if (proofExport) {
-          proofExport.value = JSON.stringify(proof, null, 2);
-        }
-        if (btnCopyProof) btnCopyProof.disabled = false;
-      }
-
-      // ---- 1. Create Identity ---------------------------------------------
-      if (btnCreateIdentity) {
-        btnCreateIdentity.addEventListener("click", async () => {
-          setText(identityStatus, "Creating identity…", "#a3b0ff");
-
-          try {
-            const resp = await fetch(`${API}/identity`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({})
-            });
-
-            if (!resp.ok) {
-              const text = await resp.text();
-              throw new Error(text || "Backend error");
-            }
-
-            const data = await resp.json();
-            const identityId = data.identityId || data.id;
-            if (!identityId) throw new Error("No identityId in response");
-
-            // ensure dropdown option
-            if (identitySelect) {
-              let opt = identitySelect.querySelector(`option[value="${identityId}"]`);
-              if (!opt) {
-                opt = document.createElement("option");
-                opt.value = identityId;
-                opt.textContent = identityId;
-                identitySelect.appendChild(opt);
-              }
-              identitySelect.value = identityId;
-            }
-
-            renderIdentity(data);
-            setText(identityStatus, "Identity created", "#7ae39c");
-          } catch (err) {
-            console.error(err);
-            setText(identityStatus, "Failed: " + err.message, "#ff7b8a");
-          }
-        });
-      }
-
-      // ---- select change shows cached identity ----------------------------
+      // keep dropdown in sync
       if (identitySelect) {
-        identitySelect.addEventListener("change", () => {
-          const id = identitySelect.value;
-          if (!id || !identities[id]) return;
-          renderIdentity(identities[id]);
-        });
+        let opt = identitySelect.querySelector(`option[value="${data.identityId}"]`);
+        if (!opt) {
+          opt = document.createElement("option");
+          opt.value = data.identityId;
+          opt.textContent = data.identityId;
+          identitySelect.appendChild(opt);
+        }
+        identitySelect.value = data.identityId;
       }
+    }
 
-      // ---- 2. Save Attributes ---------------------------------------------
-      if (btnSaveAttrs) {
-        btnSaveAttrs.addEventListener("click", async (e) => {
-          e.preventDefault();
-
-          const identityId = identitySelect?.value;
-          const birthdate  = (birthdateInput?.value || "").trim();
-          const country    = (countryInput?.value || "").trim().toUpperCase();
-
-          if (!identityId) {
-            setText(attrsStatus, "No active identity selected.", "#ff7b8a");
-            return;
-          }
-          if (!birthdate || !country) {
-            setText(attrsStatus, "Birthdate & country required.", "#ff7b8a");
-            return;
-          }
-
-          setText(attrsStatus, "Saving attributes…", "#a3b0ff");
-
-          try {
-            // 1) store attributes in vault
-            const attrResp = await fetch(`${API}/attributes`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                identityId,
-                attributes: { birthdate, country }
-              })
-            });
-
-            if (!attrResp.ok) {
-              const text = await attrResp.text();
-              throw new Error(text || "Backend error (/attributes)");
-            }
-
-            const attrData = await attrResp.json();
-            if (attrsOutput) {
-              attrsOutput.textContent = JSON.stringify(attrData, null, 2);
-            }
-
-            // 2) refresh identity snapshot (to get latest commitment/root)
-            const idResp = await fetch(`${API}/identity`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ identityId })
-            });
-
-            if (!idResp.ok) {
-              const text = await idResp.text();
-              throw new Error(text || "Backend error (/identity refresh)");
-            }
-
-            const identityData = await idResp.json();
-            renderIdentity(identityData);
-            setText(attrsStatus, "Attributes saved.", "#7ae39c");
-          } catch (err) {
-            console.error(err);
-            setText(attrsStatus, "Failed: " + err.message, "#ff7b8a");
-          }
-        });
+    function renderProof(proof) {
+      if (!proof) return;
+      if (proofOutput) {
+        proofOutput.textContent = JSON.stringify(proof, null, 2);
       }
+      if (proofExport) {
+        proofExport.value = JSON.stringify(proof, null, 2);
+      }
+      if (btnCopyProof) btnCopyProof.disabled = false;
+    }
 
-      // ---- 3. Generate Proof ----------------------------------------------
-      if (btnGenerateProof) {
-        btnGenerateProof.addEventListener("click", async () => {
-          const identityId = identitySelect?.value;
-          if (!identityId) {
-            setText(proofStatus, "Select an identity first.", "#ff7b8a");
-            return;
+    // ---- 1. Create Identity ---------------------------------------------
+    if (btnCreateIdentity) {
+      btnCreateIdentity.addEventListener("click", async () => {
+        setText(identityStatus, "Creating identity…", "#a3b0ff");
+
+        try {
+          const resp = await fetch(`${API}/identity`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({})
+          });
+
+          if (!resp.ok) {
+            const text = await resp.text();
+            throw new Error(text || "Backend error");
           }
 
-          const identity = identities[identityId];
-          if (!identity) {
-            setText(proofStatus, "No cached identity. Create/refresh first.", "#ff7b8a");
-            return;
+          const data = await resp.json();
+          renderIdentity(data);
+          setText(identityStatus, "Identity created", "#7ae39c");
+        } catch (err) {
+          console.error(err);
+          setText(identityStatus, "Failed: " + err.message, "#ff7b8a");
+        }
+      });
+    }
+
+    // ---- select change shows cached identity ----------------------------
+    if (identitySelect) {
+      identitySelect.addEventListener("change", () => {
+        const id = identitySelect.value;
+        if (!id || !identities[id]) return;
+        renderIdentity(identities[id]);
+      });
+    }
+
+    // ---- 2. Save Attributes (FLAT payload) ------------------------------
+    if (btnSaveAttrs) {
+      btnSaveAttrs.addEventListener("click", async (e) => {
+        e.preventDefault();
+
+        const identityId = identitySelect?.value;
+        const birthdate  = String(birthdateInput?.value || "").trim();
+        const country    = String(countryInput?.value || "").trim().toUpperCase();
+
+        if (!identityId) {
+          setText(attrsStatus, "No active identity selected.", "#ff7b8a");
+          return;
+        }
+        if (!birthdate || !country) {
+          setText(attrsStatus, "Birthdate & country required.", "#ff7b8a");
+          return;
+        }
+
+        setText(attrsStatus, "Saving attributes…", "#a3b0ff");
+
+        try {
+          // IMPORTANT: match backend contract: flat fields, NOT nested
+          const resp = await fetch(`${API}/attributes`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              identityId,
+              birthdate,
+              country
+            })
+          });
+
+          if (!resp.ok) {
+            const text = await resp.text();
+            throw new Error(text || "Backend error (/attributes)");
           }
 
-          const commitment = identity.commitment;
-          if (!commitment) {
-            setText(
-              proofStatus,
-              "No commitment on identity (check /identity response).",
-              "#ff7b8a"
+          // Your backend returns the UPDATED identity snapshot here
+          const updatedIdentity = await resp.json();
+          renderIdentity(updatedIdentity);
+
+          if (attrsOutput) {
+            attrsOutput.textContent = JSON.stringify(
+              { identityId, birthdate, country },
+              null,
+              2
             );
-            console.warn("Identity without commitment:", identity);
-            return;
           }
 
-          setText(proofStatus, "Generating proof…", "#a3b0ff");
+          setText(attrsStatus, "Attributes saved.", "#7ae39c");
+        } catch (err) {
+          console.error(err);
+          setText(attrsStatus, "Failed: " + err.message, "#ff7b8a");
+        }
+      });
+    }
 
-          try {
-            const resp = await fetch(`${API}/proof`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                identityId,
-                commitment,
-                templateId: "age_over_18_and_resident_pt"
-              })
-            });
+    // ---- 3. Generate Proof ----------------------------------------------
+    if (btnGenerateProof) {
+      btnGenerateProof.addEventListener("click", async () => {
+        const identityId = identitySelect?.value;
+        if (!identityId) {
+          setText(proofStatus, "Select an identity first.", "#ff7b8a");
+          return;
+        }
 
-            if (!resp.ok) {
-              const text = await resp.text();
-              throw new Error(text || "Backend error (/proof)");
-            }
+        const identity = identities[identityId];
+        if (!identity) {
+          setText(proofStatus, "No cached identity. Create first.", "#ff7b8a");
+          return;
+        }
 
-            const proof = await resp.json();
-            renderProof(proof);
-            setText(proofStatus, "Proof generated.", "#7ae39c");
-          } catch (err) {
-            console.error(err);
-            setText(proofStatus, "Failed: " + err.message, "#ff7b8a");
+        const commitment = identity.commitment;
+        if (!commitment) {
+          setText(
+            proofStatus,
+            "No commitment on identity (check /identity response).",
+            "#ff7b8a"
+          );
+          console.warn("Identity without commitment:", identity);
+          return;
+        }
+
+        setText(proofStatus, "Generating proof…", "#a3b0ff");
+
+        try {
+          const resp = await fetch(`${API}/proof`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              identityId,
+              commitment,
+              templateId: "age_over_18_and_resident_pt"
+            })
+          });
+
+          if (!resp.ok) {
+            const text = await resp.text();
+            throw new Error(text || "Backend error (/proof)");
           }
-        });
-      }
 
-      // ---- 4. Copy buttons -------------------------------------------------
-      if (btnCopyIdentity) {
-        btnCopyIdentity.addEventListener("click", async () => {
-          if (!identityExport.value) return;
-          await navigator.clipboard.writeText(identityExport.value);
-          const old = btnCopyIdentity.textContent;
-          btnCopyIdentity.textContent = "Copied!";
-          setTimeout(() => (btnCopyIdentity.textContent = old), 900);
-        });
-      }
+          const proof = await resp.json();
+          renderProof(proof);
+          setText(proofStatus, "Proof generated.", "#7ae39c");
+        } catch (err) {
+          console.error(err);
+          setText(proofStatus, "Failed: " + err.message, "#ff7b8a");
+        }
+      });
+    }
 
-      if (btnCopyProof) {
-        btnCopyProof.addEventListener("click", async () => {
-          if (!proofExport.value) return;
-          await navigator.clipboard.writeText(proofExport.value);
-          const old = btnCopyProof.textContent;
-          btnCopyProof.textContent = "Copied!";
-          setTimeout(() => (btnCopyProof.textContent = old), 900);
-        });
-      }
+    // ---- 4. Copy buttons -------------------------------------------------
+    if (btnCopyIdentity) {
+      btnCopyIdentity.addEventListener("click", async () => {
+        if (!identityExport.value) return;
+        await navigator.clipboard.writeText(identityExport.value);
+        const old = btnCopyIdentity.textContent;
+        btnCopyIdentity.textContent = "Copied!";
+        setTimeout(() => (btnCopyIdentity.textContent = old), 900);
+      });
+    }
 
-      // ---- 5. Open verifier -----------------------------------------------
-      if (btnOpenVerifier) {
-        btnOpenVerifier.addEventListener("click", () => {
-          window.location.href = "verifier.html";
-        });
-      }
-    });
-  </script>
+    if (btnCopyProof) {
+      btnCopyProof.addEventListener("click", async () => {
+        if (!proofExport.value) return;
+        await navigator.clipboard.writeText(proofExport.value);
+        const old = btnCopyProof.textContent;
+        btnCopyProof.textContent = "Copied!";
+        setTimeout(() => (btnCopyProof.textContent = old), 900);
+      });
+    }
+
+    // ---- 5. Open verifier -----------------------------------------------
+    if (btnOpenVerifier) {
+      btnOpenVerifier.addEventListener("click", () => {
+        window.location.href = "verifier.html";
+      });
+    }
+  });
+</script>
 
 </body>
 </html>
