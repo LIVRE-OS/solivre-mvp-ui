@@ -5,6 +5,7 @@
   <title>Solivre MVP Suite — LIVRE OS</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="stylesheet" href="assets/css/ui.css" />
   
   <script defer src="assets/js/theme.js"></script>
 </head>
@@ -37,6 +38,32 @@
     </div>
   </section>
 
+  <!-- System Status -->
+  <section class="section">
+    <h2>System Status</h2>
+
+    <section class="card status-card">
+      <ul class="card-list status-list">
+        <li>
+          <span class="status-pill live">LIVE</span>
+          <strong>Agent</strong> — Local identity &amp; proof issuer (create identity, bind attributes, export JSON).
+        </li>
+        <li>
+          <span class="status-pill live">LIVE</span>
+          <strong>Verifier</strong> — Checks proof payloads against the Vault and template rules.
+        </li>
+        <li>
+          <span class="status-pill.wip status-pill wip">WIP</span>
+          <strong>Vault</strong> — In-memory Vault is active; UI dashboard is under construction.
+        </li>
+        <li>
+          <span class="status-pill soon">SOON</span>
+          <strong>ID Kernel</strong> — Template registry &amp; claim types (age checks, residency, membership).
+        </li>
+      </ul>
+    </section>
+  </section>
+
   <!-- MVP Grid -->
   <section class="section">
     <h2>MVP Tools</h2>
@@ -62,14 +89,14 @@
 
       <a class="mvp-card" href="kernel.html">
         <h3>ID Kernel</h3>
-        <p>Claim registry & proof structures.</p>
-        <span class="tag wip">WIP</span>
+        <p>Claim registry &amp; proof structures.</p>
+        <span class="tag soon">SOON</span>
       </a>
     </div>
   </section>
 
   <footer>
-    <p>© LIVRE OS — Solivre MVP Suite</p>
+    <p>© LIVRE OS - Solivre MVP Suite</p>
   </footer>
 </body>
 </html>
