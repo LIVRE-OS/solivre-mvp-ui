@@ -386,256 +386,267 @@
       </div>
     </main>
 
-    <script>
-      // Change this if your backend runs elsewhere in prod
-      const API_BASE_URL = "http://localhost:4000";
+<script>
+  // Change this if your backend runs elsewhere in prod
+  const API_BASE_URL = "http://localhost:4000";
 
-      const identityListEl = document.getElementById("identity-list");
-      const identitiesCountEl = document.getElementById("identities-count");
-      const selectedIdentityLabelEl = document.getElementById(
-        "selected-identity-label"
+  const identityListEl = document.getElementById("identity-list");
+  const identitiesCountEl = document.getElementById("identities-count");
+  const selectedIdentityLabelEl = document.getElementById(
+    "selected-identity-label"
+  );
+  const identityDetailsEl = document.getElementById("identity-details");
+  const proofsCountEl = document.getElementById("proofs-count");
+  const proofsEmptyEl = document.getElementById("proofs-empty");
+  const proofsTableEl = document.getElementById("proofs-table");
+  const proofsBodyEl = document.getElementById("proofs-body");
+  const selectedProofLabelEl = document.getElementById("selected-proof-label");
+  const selectedProofJsonEl = document.getElementById("selected-proof-json");
+  const vaultStatusEl = document.getElementById("vault-status");
+  const vaultErrorEl = document.getElementById("vault-error");
+
+  let currentIdentityId = null;
+
+  function setStatus(msg) {
+    if (vaultStatusEl) vaultStatusEl.textContent = msg;
+  }
+
+  function setError(msg) {
+    if (vaultErrorEl) vaultErrorEl.textContent = msg || "";
+  }
+
+  async function fetchJSON(path) {
+    const url = API_BASE_URL + path;
+    const res = await fetch(url);
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(
+        `HTTP ${res.status} for ${path}${
+          text ? " – " + text.slice(0, 120) : ""
+        }`
       );
-      const identityDetailsEl = document.getElementById("identity-details");
-      const proofsCountEl = document.getElementById("proofs-count");
-      const proofsEmptyEl = document.getElementById("proofs-empty");
-      const proofsTableEl = document.getElementById("proofs-table");
-      const proofsBodyEl = document.getElementById("proofs-body");
-      const selectedProofLabelEl = document.getElementById(
-        "selected-proof-label"
-      );
-      const selectedProofJsonEl = document.getElementById(
-        "selected-proof-json"
-      );
-      const vaultStatusEl = document.getElementById("vault-status");
-      const vaultErrorEl = document.getElementById("vault-error");
+    }
+    return res.json();
+  }
 
-      let currentIdentityId = null;
+  async function loadIdentities() {
+    setStatus("Loading identities…");
+    setError("");
 
-      function setStatus(msg) {
-        if (vaultStatusEl) vaultStatusEl.textContent = msg;
-      }
+    identityListEl.innerHTML =
+      '<li class="empty-state">Loading identities…</li>';
 
-      function setError(msg) {
-        if (vaultErrorEl) vaultErrorEl.textContent = msg || "";
-      }
+    try {
+      const identities = await fetchJSON("/identities");
 
-      async function fetchJSON(path) {
-        const url = API_BASE_URL + path;
-        const res = await fetch(url);
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          throw new Error(
-            `HTTP ${res.status} for ${path}${
-              text ? " – " + text.slice(0, 120) : ""
-            }`
-          );
-        }
-        return res.json();
-      }
-
-      async function loadIdentities() {
-        setStatus("Loading identities…");
-        setError("");
-
+      if (!Array.isArray(identities) || identities.length === 0) {
         identityListEl.innerHTML =
-          '<li class="empty-state">Loading identities…</li>';
-
-        try {
-          const identities = await fetchJSON("/identities");
-
-          if (!Array.isArray(identities) || identities.length === 0) {
-            identityListEl.innerHTML =
-              '<li class="empty-state">No identities found in this node.</li>';
-            identitiesCountEl.textContent = "0 identities";
-            return;
-          }
-
-          identitiesCountEl.textContent = `${identities.length} identit${
-            identities.length === 1 ? "y" : "ies"
-          }`;
-
-          identityListEl.innerHTML = "";
-
-          identities.forEach((identity) => {
-            const li = document.createElement("li");
-            li.className = "identity-item";
-            li.dataset.identityId = identity.id;
-
-            const idSpan = document.createElement("span");
-            idSpan.className = "identity-id";
-            idSpan.textContent = identity.id;
-
-            const metaSpan = document.createElement("span");
-            metaSpan.className = "identity-meta";
-            metaSpan.textContent = identity.createdAt
-              ? `created: ${identity.createdAt}`
-              : "created: (unknown)";
-
-            li.appendChild(idSpan);
-            li.appendChild(metaSpan);
-
-            li.addEventListener("click", () =>
-              onIdentitySelected(identity.id, li)
-            );
-
-            identityListEl.appendChild(li);
-          });
-
-          setStatus("Identities loaded.");
-        } catch (err) {
-          console.error(err);
-          identityListEl.innerHTML =
-            '<li class="empty-state">Failed to load identities.</li>';
-          identitiesCountEl.textContent = "Error";
-          setStatus("Error loading identities.");
-          setError(err.message || String(err));
-        }
+          '<li class="empty-state">No identities found in this node.</li>';
+        identitiesCountEl.textContent = "0 identities";
+        return;
       }
 
-      async function onIdentitySelected(identityId, listItemEl) {
-        currentIdentityId = identityId;
+      identitiesCountEl.textContent = `${identities.length} identit${
+        identities.length === 1 ? "y" : "ies"
+      }`;
 
-        // highlight selection
-        document
-          .querySelectorAll(".identity-item")
-          .forEach((el) => el.classList.remove("active"));
-        if (listItemEl) listItemEl.classList.add("active");
+      identityListEl.innerHTML = "";
 
-        selectedIdentityLabelEl.textContent = identityId;
-        setStatus("Loading identity details…");
-        setError("");
+      identities.forEach((identity) => {
+        const li = document.createElement("li");
+        li.className = "identity-item";
+        li.dataset.identityId = identity.id;
 
-        identityDetailsEl.innerHTML =
-          '<div class="empty-state">Loading…</div>';
+        const idSpan = document.createElement("span");
+        idSpan.className = "identity-id";
+        idSpan.textContent = identity.id;
+
+        const metaSpan = document.createElement("span");
+        metaSpan.className = "identity-meta";
+        metaSpan.textContent = identity.createdAt
+          ? `created: ${identity.createdAt}`
+          : "created: (unknown)";
+
+        li.appendChild(idSpan);
+        li.appendChild(metaSpan);
+
+        li.addEventListener("click", () =>
+          onIdentitySelected(identity.id, li)
+        );
+
+        identityListEl.appendChild(li);
+      });
+
+      setStatus("Identities loaded.");
+    } catch (err) {
+      console.error(err);
+      identityListEl.innerHTML =
+        '<li class="empty-state">Failed to load identities.</li>';
+      identitiesCountEl.textContent = "Error";
+      setStatus("Error loading identities.");
+      setError(err.message || String(err));
+    }
+  }
+
+  async function onIdentitySelected(identityId, listItemEl) {
+    currentIdentityId = identityId;
+
+    // highlight selection
+    document
+      .querySelectorAll(".identity-item")
+      .forEach((el) => el.classList.remove("active"));
+    if (listItemEl) listItemEl.classList.add("active");
+
+    selectedIdentityLabelEl.textContent = identityId;
+    setStatus("Loading identity details…");
+    setError("");
+
+    identityDetailsEl.innerHTML =
+      '<div class="empty-state">Loading…</div>';
+    proofsEmptyEl.style.display = "block";
+    proofsTableEl.style.display = "none";
+    proofsBodyEl.innerHTML = "";
+    proofsCountEl.textContent = "";
+    selectedProofLabelEl.textContent = "None";
+    selectedProofJsonEl.textContent =
+      "// Select a proof to inspect its JSON bundle.";
+
+    try {
+      const [identity, proofs] = await Promise.all([
+        fetchJSON(`/identities/${encodeURIComponent(identityId)}`),
+        fetchJSON(
+          `/identities/${encodeURIComponent(identityId)}/proofs`
+        ),
+      ]);
+
+      // render identity JSON
+      identityDetailsEl.innerHTML = "";
+      const pre = document.createElement("pre");
+      pre.textContent = JSON.stringify(identity, null, 2);
+      identityDetailsEl.appendChild(pre);
+
+      // render proofs
+      if (Array.isArray(proofs) && proofs.length > 0) {
+        proofsEmptyEl.style.display = "none";
+        proofsTableEl.style.display = "table";
+        proofsBodyEl.innerHTML = "";
+
+        proofs.forEach((proof) => {
+          const tr = document.createElement("tr");
+
+          const tdTemplate = document.createElement("td");
+          tdTemplate.textContent = proof.templateId || "(template)";
+          tr.appendChild(tdTemplate);
+
+          const tdIssued = document.createElement("td");
+          tdIssued.textContent = proof.issuedAt || "";
+          tr.appendChild(tdIssued);
+
+          const tdHash = document.createElement("td");
+          const hashSpan = document.createElement("span");
+          hashSpan.className = "identity-id";
+          hashSpan.textContent =
+            (proof.proofHash ? proof.proofHash.slice(0, 12) : "") +
+              "…" || "(none)";
+          tdHash.appendChild(hashSpan);
+          tr.appendChild(tdHash);
+
+          const tdActions = document.createElement("td");
+          const actionsDiv = document.createElement("div");
+          actionsDiv.className = "actions";
+
+          const viewBtn = document.createElement("button");
+          viewBtn.textContent = "View JSON";
+          viewBtn.addEventListener("click", () =>
+            onProofSelected(proof)
+          );
+          actionsDiv.appendChild(viewBtn);
+
+          const copyBtn = document.createElement("button");
+          copyBtn.textContent = "Copy";
+          copyBtn.addEventListener("click", () =>
+            copyProofToClipboard(proof)
+          );
+          actionsDiv.appendChild(copyBtn);
+
+          const downloadBtn = document.createElement("button");
+          downloadBtn.textContent = "Download";
+          downloadBtn.addEventListener("click", () =>
+            downloadProof(proof)
+          );
+          actionsDiv.appendChild(downloadBtn);
+
+          const openBtn = document.createElement("button");
+          openBtn.textContent = "Open in Verifier";
+          openBtn.addEventListener("click", () =>
+            openInVerifier(proof)
+          );
+          actionsDiv.appendChild(openBtn);
+
+          tdActions.appendChild(actionsDiv);
+          tr.appendChild(tdActions);
+
+          proofsBodyEl.appendChild(tr);
+        });
+
+        proofsCountEl.textContent = `${proofs.length} proof${
+          proofs.length === 1 ? "" : "s"
+        }`;
+      } else {
         proofsEmptyEl.style.display = "block";
         proofsTableEl.style.display = "none";
-        proofsBodyEl.innerHTML = "";
-        proofsCountEl.textContent = "";
-        selectedProofLabelEl.textContent = "None";
-        selectedProofJsonEl.textContent =
-          "// Select a proof to inspect its JSON bundle.";
-
-        try {
-          const [identity, proofs] = await Promise.all([
-            fetchJSON(`/identities/${encodeURIComponent(identityId)}`),
-            fetchJSON(`/identities/${encodeURIComponent(identityId)}/proofs`),
-          ]);
-
-          // render identity JSON
-          identityDetailsEl.innerHTML = "";
-          const pre = document.createElement("pre");
-          pre.textContent = JSON.stringify(identity, null, 2);
-          identityDetailsEl.appendChild(pre);
-
-          // render proofs
-          if (Array.isArray(proofs) && proofs.length > 0) {
-            proofsEmptyEl.style.display = "none";
-            proofsTableEl.style.display = "table";
-            proofsBodyEl.innerHTML = "";
-
-            proofs.forEach((proof) => {
-              const tr = document.createElement("tr");
-
-              const tdTemplate = document.createElement("td");
-              tdTemplate.textContent = proof.templateId || "(template)";
-              tr.appendChild(tdTemplate);
-
-              const tdIssued = document.createElement("td");
-              tdIssued.textContent = proof.issuedAt || "";
-              tr.appendChild(tdIssued);
-
-              const tdHash = document.createElement("td");
-              const hashSpan = document.createElement("span");
-              hashSpan.className = "identity-id";
-              hashSpan.textContent =
-                proof.proofHash?.slice(0, 12) + "…" || "(none)";
-              tdHash.appendChild(hashSpan);
-              tr.appendChild(tdHash);
-
-              const tdActions = document.createElement("td");
-              const actionsDiv = document.createElement("div");
-              actionsDiv.className = "actions";
-
-              const viewBtn = document.createElement("button");
-              viewBtn.textContent = "View JSON";
-              viewBtn.addEventListener("click", () =>
-                onProofSelected(proof)
-              );
-              actionsDiv.appendChild(viewBtn);
-
-              const copyBtn = document.createElement("button");
-              copyBtn.textContent = "Copy";
-              copyBtn.addEventListener("click", () =>
-                copyProofToClipboard(proof)
-              );
-              actionsDiv.appendChild(copyBtn);
-
-              const downloadBtn = document.createElement("button");
-              downloadBtn.textContent = "Download";
-              downloadBtn.addEventListener("click", () =>
-                downloadProof(proof)
-              );
-              actionsDiv.appendChild(downloadBtn);
-
-              tdActions.appendChild(actionsDiv);
-              tr.appendChild(tdActions);
-
-              proofsBodyEl.appendChild(tr);
-            });
-
-            proofsCountEl.textContent = `${proofs.length} proof${
-              proofs.length === 1 ? "" : "s"
-            }`;
-          } else {
-            proofsEmptyEl.style.display = "block";
-            proofsTableEl.style.display = "none";
-            proofsCountEl.textContent = "0 proofs";
-          }
-
-          setStatus("Identity and proofs loaded.");
-        } catch (err) {
-          console.error(err);
-          identityDetailsEl.innerHTML =
-            '<div class="empty-state">Failed to load identity or proofs.</div>';
-          setStatus("Error loading identity.");
-          setError(err.message || String(err));
-        }
+        proofsCountEl.textContent = "0 proofs";
       }
 
-      function onProofSelected(proof) {
-        selectedProofLabelEl.textContent =
-          proof.proofHash || "(unidentified proof)";
-        selectedProofJsonEl.textContent = JSON.stringify(proof, null, 2);
-      }
+      setStatus("Identity and proofs loaded.");
+    } catch (err) {
+      console.error(err);
+      identityDetailsEl.innerHTML =
+        '<div class="empty-state">Failed to load identity or proofs.</div>';
+      setStatus("Error loading identity.");
+      setError(err.message || String(err));
+    }
+  }
 
-      function copyProofToClipboard(proof) {
-        if (!navigator.clipboard) {
-          alert("Clipboard API not available in this browser.");
-          return;
-        }
-        navigator.clipboard
-          .writeText(JSON.stringify(proof, null, 2))
-          .then(() => setStatus("Proof JSON copied to clipboard."))
-          .catch((err) => {
-            console.error(err);
-            setError("Failed to copy proof JSON.");
-          });
-      }
+  function onProofSelected(proof) {
+    selectedProofLabelEl.textContent =
+      proof.proofHash || "(unidentified proof)";
+    selectedProofJsonEl.textContent = JSON.stringify(proof, null, 2);
+  }
 
-      function downloadProof(proof) {
-        const blob = new Blob([JSON.stringify(proof, null, 2)], {
-          type: "application/json",
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `proof-${proof.proofHash || "bundle"}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        setStatus("Proof JSON downloaded.");
-      }
+  function copyProofToClipboard(proof) {
+    if (!navigator.clipboard) {
+      alert("Clipboard API not available in this browser.");
+      return;
+    }
+    navigator.clipboard
+      .writeText(JSON.stringify(proof, null, 2))
+      .then(() => setStatus("Proof JSON copied to clipboard."))
+      .catch((err) => {
+        console.error(err);
+        setError("Failed to copy proof JSON.");
+      });
+  }
 
-      document.addEventListener("DOMContentLoaded", loadIdentities);
-    </script>
+  function downloadProof(proof) {
+    const blob = new Blob([JSON.stringify(proof, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `proof-${proof.proofHash || "bundle"}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setStatus("Proof JSON downloaded.");
+  }
+
+  function openInVerifier(proof) {
+    const encoded = encodeURIComponent(JSON.stringify(proof));
+    window.open(`verifier.html?proof=${encoded}`, "_blank");
+  }
+
+  document.addEventListener("DOMContentLoaded", loadIdentities);
+</script>
   </body>
 </html>

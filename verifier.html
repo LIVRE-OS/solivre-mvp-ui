@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="assets/css/styles.css" />
 
   <script defer src="assets/js/theme.js"></script>
-  <script defer src="assets/js/verifier.js"></script>
+  <!-- <script defer src="assets/js/verifier.js"></script> -->
 </head>
 
 <body class="dark">
@@ -101,13 +101,28 @@
   <footer>
     <p>© LIVRE OS — Solivre MVP</p>
   </footer>
-  <script>
+ <script>
+  function loadProofFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    const encoded = params.get("proof");
+    if (!encoded) return null;
+
+    try {
+      const proof = JSON.parse(decodeURIComponent(encoded));
+      return proof;
+    } catch (err) {
+      console.error("Failed to parse proof from URL", err);
+      return null;
+    }
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     const API = "http://localhost:4000";
 
     const identityInput  = document.getElementById("identity-input");
     const proofInput     = document.getElementById("proof-input");
     const btnVerify      = document.getElementById("btn-verify");
+    const btnClear       = document.getElementById("btn-clear");
     const verifyStatus   = document.getElementById("verify-status");
     const verifyOutput   = document.getElementById("verify-output");
 
@@ -117,30 +132,40 @@
       if (color) el.style.color = color;
     }
 
+    // If opened from Vault with ?proof=..., auto-fill proof textarea
+    const proofFromURL = loadProofFromURL();
+    if (proofFromURL && proofInput) {
+      proofInput.value = JSON.stringify(proofFromURL, null, 2);
+      setText(
+        verifyStatus,
+        "Proof loaded from Vault link. You can verify directly.",
+        "#a3b0ff"
+      );
+    }
+
+    if (btnClear) {
+      btnClear.addEventListener("click", () => {
+        if (identityInput) identityInput.value = "";
+        if (proofInput) proofInput.value = "";
+        setText(verifyStatus, "Cleared.", "#a3b0ff");
+        if (verifyOutput) verifyOutput.textContent = "";
+      });
+    }
+
     if (btnVerify) {
       btnVerify.addEventListener("click", async () => {
-        // 1) Parse Identity JSON
-        let identityObj;
-        try {
-          identityObj = JSON.parse(identityInput.value || "{}");
-        } catch (err) {
-          setText(verifyStatus, "Identity JSON is not valid JSON.", "#ff7b8a");
-          return;
+        // 1) Parse Identity JSON (optional if coming from Vault)
+        let identityObj = {};
+        if (identityInput && identityInput.value.trim()) {
+          try {
+            identityObj = JSON.parse(identityInput.value || "{}");
+          } catch (err) {
+            setText(verifyStatus, "Identity JSON is not valid JSON.", "#ff7b8a");
+            return;
+          }
         }
 
-        const identityId =
-          identityObj.identityId || identityObj.id || identityObj.identity_id;
-
-        if (!identityId) {
-          setText(
-            verifyStatus,
-            "Identity JSON must contain an identityId.",
-            "#ff7b8a"
-          );
-          return;
-        }
-
-        // 2) Parse Proof JSON
+        // 2) Parse Proof JSON (required)
         let proofObj;
         try {
           proofObj = JSON.parse(proofInput.value || "{}");
@@ -154,16 +179,37 @@
           return;
         }
 
+        // 3) Resolve identityId
+        let identityId =
+          identityObj.identityId ||
+          identityObj.id ||
+          identityObj.identity_id ||
+          null;
+
+        // Fallback: if no identity JSON provided, use identityId from proof
+        if (!identityId && proofObj.identityId) {
+          identityId = proofObj.identityId;
+        }
+
+        if (!identityId) {
+          setText(
+            verifyStatus,
+            "An identityId is required (either in the Identity JSON or inside the proof).",
+            "#ff7b8a"
+          );
+          return;
+        }
+
         if (
           proofObj.identityId &&
+          identityId &&
           proofObj.identityId !== identityId
         ) {
           setText(
             verifyStatus,
-            "Warning: identityId in proof does not match identity JSON.",
+            "Warning: identityId in proof does not match identity JSON. Backend will enforce the correct binding.",
             "#ffcc66"
           );
-          // we still continue – backend will enforce
         }
 
         setText(verifyStatus, "Verifying proof…", "#a3b0ff");
@@ -174,8 +220,8 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               identityId,
-              proof: proofObj
-            })
+              proof: proofObj,
+            }),
           });
 
           const text = await resp.text();
@@ -201,10 +247,11 @@
             }
             return;
           }
-
-          // resp.ok
           if (verifyOutput) {
-            verifyOutput.textContent = JSON.stringify(data, null, 2);
+            verifyOutput.textContent =
+              typeof data === "string"
+                ? data
+                : JSON.stringify(data, null, 2);
           }
 
           if (data && data.valid === true) {
